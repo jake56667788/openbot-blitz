@@ -74,7 +74,7 @@ button:disabled{opacity:.55;cursor:not-allowed}
 <p id="status" role="status" aria-live="polite"></p>
 <p class="small">Your bridge token is sent only to this server.</p>
 
-<script>
+<script data-cfasync="false">
 (() => {
   "use strict";
 
@@ -133,9 +133,10 @@ button:disabled{opacity:.55;cursor:not-allowed}
       }
 
       if (!response.ok) {
-        const message = result.message || result.error ||
-          ("Request failed with HTTP " + response.status);
-        throw new Error(message);
+        throw new Error(
+          result.message || result.error ||
+          ("Request failed with HTTP " + response.status)
+        );
       }
 
       return result;
@@ -145,9 +146,7 @@ button:disabled{opacity:.55;cursor:not-allowed}
       }
 
       if (error instanceof TypeError) {
-        throw new Error(
-          "Could not reach the login bridge. Check that the server is running."
-        );
+        throw new Error("Could not reach the login bridge.");
       }
 
       throw error;
@@ -182,9 +181,8 @@ button:disabled{opacity:.55;cursor:not-allowed}
       challenge = result.challenge || result.challenge_id || "";
 
       if (!challenge) {
-        console.error("Login bridge /start response did not contain a challenge.");
         throw new Error(
-          "OpenBot did not return a verification challenge. Check the server logs."
+          "OpenBot did not return a verification challenge. Check server logs."
         );
       }
 
@@ -193,7 +191,7 @@ button:disabled{opacity:.55;cursor:not-allowed}
       codeInput.focus();
     } catch (error) {
       console.error("Login start failed:", error.message);
-      showStatus(error.message || "Could not send the verification code.", "error");
+      showStatus(error.message, "error");
     } finally {
       setBusy(sendButton, false, "Sending code…", "Send verification code");
     }
@@ -230,13 +228,12 @@ button:disabled{opacity:.55;cursor:not-allowed}
       );
     } catch (error) {
       console.error("Login verification failed:", error.message);
-      showStatus(error.message || "Verification failed.", "error");
+      showStatus(error.message, "error");
     } finally {
       setBusy(verifyButton, false, "Verifying…", "Verify and sign in");
     }
   });
 
-  // Make it obvious the page JavaScript actually loaded.
   showStatus("Login page ready.");
 })();
 </script>
@@ -253,10 +250,9 @@ class UnixConnection(http.client.HTTPConnection):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "OpenBotLoginBridge/1.1"
+    server_version = "OpenBotLoginBridge/1.2"
 
     def log_message(self, format_string, *args):
-        # Do not log headers, request bodies, email addresses, or tokens.
         logging.info("%s %s", self.command, self.path)
 
     def reply(self, status, data, content_type="application/json", head=False):
@@ -291,12 +287,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_HEAD(self):
         if self.path == "/":
-            self.reply(
-                200,
-                PAGE.encode("utf-8"),
-                "text/html; charset=utf-8",
-                head=True
-            )
+            self.reply(200, PAGE.encode("utf-8"), "text/html; charset=utf-8", head=True)
         elif self.path == "/health":
             self.reply(200, {"status": "ok"}, head=True)
         else:
@@ -341,10 +332,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.reply(400, {"error": "Enter the verification code."})
 
                 route = "/v1/login/verify"
-                fields = {
-                    "challenge": challenge,
-                    "code": code
-                }
+                fields = {"challenge": challenge, "code": code}
 
             logging.info("Forwarding authenticated request to OpenBot: %s", route)
 
@@ -369,7 +357,6 @@ class Handler(BaseHTTPRequestHandler):
 
             result = {}
 
-            # OpenBot's control socket currently returns key=value lines.
             for line in raw.splitlines():
                 key, separator, value = line.partition("=")
                 if separator:
